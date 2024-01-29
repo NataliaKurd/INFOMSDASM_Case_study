@@ -1,0 +1,16 @@
+<OGRVRTDataSource>
+    <OGRVRTLayer name="roads">
+        <SrcDataSource>data/roads.gpkg</SrcDataSource>
+        <SrcLayer>roads</SrcLayer>
+        <SrcSQL dialect="sqlite">SELECT * from roads</SrcSQL>
+        <GeometryType>wkbLineString</GeometryType>
+        <LayerSRS>EPSG:28992</LayerSRS>
+    </OGRVRTLayer>
+    <OGRVRTLayer name="foodstores">
+        <SrcDataSource>data/agents.gpkg</SrcDataSource>
+        <SrcLayer>agent_values</SrcLayer>
+        <SrcSQL dialect="sqlite">SELECT * from agents</SrcSQL>
+        <GeometryType>wkbPoint</GeometryType>
+        <LayerSRS>EPSG:28992</LayerSRS>
+    </OGRVRTLayer>
+</OGRVRTDataSource>
