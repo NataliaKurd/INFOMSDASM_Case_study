@@ -22,6 +22,7 @@ class FoodEnvironment(pcrfw.DynamicModel):
     ##########################
     # differential equations #
     ##########################
+    
     # first term, differential equation internal effects
     def diffEqTermOne(self, x, a, betaH, gammaH):
         return -((betaH / (1.0 + campo.exp(-gammaH * (x - a)))) - (betaH / 2.0))
@@ -43,11 +44,6 @@ class FoodEnvironment(pcrfw.DynamicModel):
         self.hh = self.foodenv.add_phenomenon('hh')
         self.hh.add_property_set('fd', 'data/households_frontdoor.csv')
 
-        # constants 
-        self.hh.fd.utility = 0
-        self.hh.fd.price_weight = 0.45
-        self.hh.fd.propensity_weight = 0.55
-
         # set income for each household
         number_of_households = self.hh.nr_agents
         mean_income = 37.9 # https://opendata.cbs.nl/statline/#/CBS/en/dataset/83739ENG/table?ts=1706440130257
@@ -59,17 +55,22 @@ class FoodEnvironment(pcrfw.DynamicModel):
         self.hh.fd.high_income = self.hh.fd.income >= 37.9
         self.hh.fd.high_income_int = campo.where(self.hh.fd.high_income, self.hh.fd.true, self.hh.fd.false)
 
-        # set initial propensity of households from 0 to 1
+        # set initial propensity of households from -2 to 2
         # mean 0.739 and 0.661 for high- and low-income households, respectively http://dx.doi.org/10.1046/j.1365-277X.1998.00084.x
 
-        self.hh.fd.propensity_low_income = np.random.beta(4, 2.06, number_of_households)
-        self.hh.fd.propensity_high_income = np.random.beta(4, 1.55, number_of_households)
+        self.hh.fd.lower_high = -1
+        self.hh.fd.upper_high = 2
+
+        self.hh.fd.lower_low = -2
+        self.hh.fd.upper_low = 1
+        self.hh.fd.propensity_low_income = campo.uniform(self.hh.fd.lower_low, self.hh.fd.upper_low, seed)
+        self.hh.fd.propensity_high_income = campo.uniform(self.hh.fd.lower_high, self.hh.fd.upper_high, seed)
         self.hh.fd.x = campo.where(self.hh.fd.high_income, self.hh.fd.propensity_high_income, self.hh.fd.propensity_low_income)
 
 
         # set default propensity parameter
-        self.hh.fd.lower = 0.45
-        self.hh.fd.upper = 0.55
+        self.hh.fd.lower = -0.0001
+        self.hh.fd.upper = 0.0001
         self.hh.fd.a = campo.uniform(self.hh.fd.lower, self.hh.fd.upper, seed)
 
         # set betaH parameter
@@ -155,7 +156,7 @@ class FoodEnvironment(pcrfw.DynamicModel):
         # add price level feature, expensive if propensity is higher then average, cheap if lower
         self.fs.fd.true = 1
         self.fs.fd.false = 0.000001
-        self.fs.fd.expensive = self.fs.fd.y >= 0.5
+        self.fs.fd.expensive = self.fs.fd.y >= 0
         self.fs.fd.expensive_int = campo.where(self.fs.fd.expensive, self.fs.fd.true, self.fs.fd.false)
 
         # set the duration (years) of one time step
@@ -173,10 +174,18 @@ class FoodEnvironment(pcrfw.DynamicModel):
         self.foodenv.set_time(start, unit, stepsize, self.nrTimeSteps())
 
         # technical detail
+        self.hh.fd.utility = 0
+        self.hh.fd.price_weight = 0.45
+        self.hh.fd.propensity_weight = 0.55
+        self.hh.fd.average_fs_price = 0
+        self.hh.fd.y = 0.0 
+
         self.hh.fd.x.is_dynamic = True
-        self.hh.fd.y = 0.0 # temporary value
         self.hh.fd.y.is_dynamic = True
+        self.hh.fd.utility.is_dynamic = True
         self.fs.fd.y.is_dynamic = True
+        self.fs.fd.expensive.is_dynamic = True
+        self.fs.fd.expensive_int.is_dynamic = True
 
         # write the lue dataset
         self.foodenv.write()
