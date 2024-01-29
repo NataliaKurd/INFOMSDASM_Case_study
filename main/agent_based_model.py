@@ -43,24 +43,28 @@ class FoodEnvironment(pcrfw.DynamicModel):
         self.hh = self.foodenv.add_phenomenon('hh')
         self.hh.add_property_set('fd', 'data/households_frontdoor.csv')
 
-        # set default health choices and utility
-        self.hh.fd.healthy_choice = 0
-        self.hh.fd.unhealthy_choice = 0
+        # constants 
+        self.hh.fd.utility = 0
+        self.hh.fd.price_weight = 0.45
+        self.hh.fd.propensity_weight = 0.55
 
         # set income for each household
         number_of_households = self.hh.nr_agents
         mean_income = 37.9 # https://opendata.cbs.nl/statline/#/CBS/en/dataset/83739ENG/table?ts=1706440130257
         sd = 10
 
+        self.hh.fd.true = 1
+        self.hh.fd.false = 0.000001
         self.hh.fd.income = np.random.normal(mean_income, sd, number_of_households)
-        self.hh.fd.low_income = self.hh.fd.income < 37.9
+        self.hh.fd.high_income = self.hh.fd.income >= 37.9
+        self.hh.fd.high_income_int = campo.where(self.hh.fd.high_income, self.hh.fd.true, self.hh.fd.false)
 
         # set initial propensity of households from 0 to 1
         # mean 0.739 and 0.661 for high- and low-income households, respectively http://dx.doi.org/10.1046/j.1365-277X.1998.00084.x
 
         self.hh.fd.propensity_low_income = np.random.beta(4, 2.06, number_of_households)
         self.hh.fd.propensity_high_income = np.random.beta(4, 1.55, number_of_households)
-        self.hh.fd.x = campo.where(self.hh.fd.low_income, self.hh.fd.propensity_low_income, self.hh.fd.propensity_high_income)
+        self.hh.fd.x = campo.where(self.hh.fd.high_income, self.hh.fd.propensity_high_income, self.hh.fd.propensity_low_income)
 
 
         # set default propensity parameter
@@ -104,7 +108,7 @@ class FoodEnvironment(pcrfw.DynamicModel):
         high = 1.0
         self.hh.sur.low = low
         self.hh.sur.high = high
-        # calculate the weight
+        # calculate the weight for distance
         self.hh.sur.weight = campo.where(self.hh.sur.area, self.hh.sur.high, self.hh.sur.low)
 
         # technical detail
@@ -146,16 +150,19 @@ class FoodEnvironment(pcrfw.DynamicModel):
         self.fs.set_epsg(28992)
 
         # calculate propensity of surrounding households for each foodstore as starting point for dynamic part
-        self.fs.fd.y = campo.focal_agents(self.fs.fd, self.fs.sur.weight, self.hh.fd.x, fail=True)\
+        self.fs.fd.y = campo.focal_agents(self.fs.fd, self.fs.sur.weight, self.hh.fd.x, fail=True)
         
         # add price level feature, expensive if propensity is higher then average, cheap if lower
+        self.fs.fd.true = 1
+        self.fs.fd.false = 0.000001
         self.fs.fd.expensive = self.fs.fd.y >= 0.5
+        self.fs.fd.expensive_int = campo.where(self.fs.fd.expensive, self.fs.fd.true, self.fs.fd.false)
 
         # set the duration (years) of one time step
         self.timestep = 0.333333
 
         # create the output lue data set
-        self.foodenv.create_dataset("output/food_environment.lue")
+        self.foodenv.create_dataset("food_environment.lue")
 
         # create real time settings for lue
         date = datetime.date(2000, 1, 2)
@@ -178,12 +185,19 @@ class FoodEnvironment(pcrfw.DynamicModel):
         end = datetime.datetime.now() - init_start
         print(f'init: {end}')
 
+        ##############
+        # Households #
+        ##############
+
+
     def dynamic(self):
         start = datetime.datetime.now()
 
-
-        # average store propensity in neighbourhood of houses
+        self.hh.fd.average_fs_price = campo.focal_agents(self.hh.fd, self.hh.sur.weight, self.fs.fd.expensive_int, fail=True)
         self.hh.fd.y = campo.focal_agents(self.hh.fd, self.hh.sur.weight, self.fs.fd.y, fail=True)
+        
+        self.hh.fd.utility = self.hh.fd.price_weight * (self.hh.fd.high_income_int - self.hh.fd.average_fs_price) \
+            + self.hh.fd.propensity_weight * (self.hh.fd.y - self.hh.fd.x)
 
         # update household propensity
         self.hh.fd.x = self.hh.fd.x + self.timestep \
@@ -195,6 +209,7 @@ class FoodEnvironment(pcrfw.DynamicModel):
 
         # update stores prices
         self.fs.fd.expensive = self.fs.fd.y >= 0.5
+        self.fs.fd.expensive_int = campo.where(self.fs.fd.expensive, self.fs.fd.true, self.fs.fd.false)
 
         # print run duration info
         self.foodenv.write(self.currentTimeStep())
