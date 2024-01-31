@@ -32,12 +32,9 @@ def calculate_distances(df1, df2, x_col1, y_col1, x_col2, y_col2):
 class FoodEnvironment:
     def __init__(self):
         # set a dummy clone
-        self.clone_dimensions = (10, 20)
         self.initialize_clone()
 
     def initialize_clone(self):
-        # Framework requires a clone
-        # set a dummy clone
         pass
 
     ##########################
@@ -72,7 +69,7 @@ class FoodEnvironment:
         self.hh['index1'] = self.hh.index
 
         # set income for each household
-        number_of_households = len(self.hh)  # Assuming a number for illustration
+        number_of_households = len(self.hh)
         mean_income = 37.9
         sd = 10
 
@@ -131,7 +128,7 @@ class FoodEnvironment:
             (0, 0) : 2.84
         }
 
-        # Technical details
+        # weights for utility function
         self.price_weight = 0.35
         self.propensity_weight = 0.45
         self.distance_weight = 0.2
