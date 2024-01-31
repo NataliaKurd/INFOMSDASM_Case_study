@@ -75,12 +75,12 @@ class FoodEnvironment:
 
         self.hh['income'] = np.random.normal(mean_income, sd, number_of_households)
         self.hh['high_income'] = self.hh['income'] >= 37.9
+        self.hh['high_income'] = self.hh['high_income'].astype(int)
 
         # set initial propensity of households from -2 to 2
         self.hh['propensity_high_income'] = -2 + np.random.beta(4, 1.55, number_of_households) * 4
         self.hh['propensity_low_income'] = -2 + np.random.beta(4, 2.06, number_of_households) * 4
         self.hh['hh_propensity'] = np.where(self.hh['high_income'], self.hh['propensity_high_income'], self.hh['propensity_low_income'])
-        self.hh['high_income'] = self.hh['high_income'].astype(int)
 
         # set default propensity parameter
         self.hh['a'] = np.random.uniform(-0.0001, 0.0001, number_of_households)
@@ -113,8 +113,9 @@ class FoodEnvironment:
 
         number_of_foodstores = len(self.fs)
 
-        self.fs['expensive_price'] = np.random.choice([1, 0], number_of_foodstores, p=[0.5, 0.5])
         self.fs['fs_propensity'] = np.random.uniform(-2, 2, number_of_foodstores)
+        self.fs['expensive_price'] = self.fs['fs_propensity'] >= 0
+        self.fs['expensive_price'] = self.fs['expensive_price'].astype(int)
 
         self.distance_hh_fs = calculate_distances(self.hh, self.fs, 'x', 'y', 'x', 'y')
 
